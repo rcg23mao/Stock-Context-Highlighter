@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>股票K线图</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="klineFrame"></iframe>
+    <script>
+        // 从URL参数获取股票代码
+        const params = new URLSearchParams(window.location.search);
+        const stockCode = params.get('code');
+        
+        // 构建新浪财经K线图URL
+        const sinaUrl = `https://finance.sina.com.cn/realstock/company/${stockCode}/nc.shtml`;
+        
+        // 设置iframe源
+        document.getElementById('klineFrame').src = sinaUrl;
+    </script>
+</body>
+</html>

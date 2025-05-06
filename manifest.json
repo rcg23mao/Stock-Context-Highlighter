@@ -1,0 +1,43 @@
+{
+    "manifest_version": 3,
+    "name": "股票划词助手",
+    "version": "1.0.0",
+    "description": "划词识别股票名称/代码并展示K线图",
+    "icons": {
+        "16": "icons/icon16.png", 
+        "48": "icons/icon48.png", 
+        "128": "icons/icon128.png" 
+    },
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "contextMenus"
+    ],
+    "host_permissions": [
+        "https://*.sina.com.cn/*", 
+        "https://*.sinaimg.cn/*" 
+    ],
+    "background": {
+        "service_worker": "background.js" 
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"], 
+            "css": ["content.css"] 
+        }
+    ],
+    "action": {
+        "default_icon": {
+            "16": "icons/icon16.png", 
+            "24": "icons/icon24.png", 
+            "32": "icons/icon32.png" 
+        },
+        "default_title": "Stock K线划词助手",
+        "default_popup": "popup.html" 
+    },
+    "web_accessible_resources": [{
+        "resources": ["kline.html",  "styles/*", "images/*"],
+        "matches": ["<all_urls>"]
+    }]
+}

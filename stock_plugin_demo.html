@@ -1,0 +1,2497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock K-Line Viewer</title>
+    <link href="https://s2.ssl.qhres2.com/static/56662140ef7d5d03.css"  rel="stylesheet">
+    <link href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-100-M/font-awesome/6.0.0/css/all.min.css"  rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1e88e5;
+            --secondary-color: #26c6da;
+            --dark-color: #263238;
+            --light-color: #f5f7fa;
+            --success-color: #66bb6a;
+            --warning-color: #ffa726;
+            --danger-color: #ef5350;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--dark-color);
+            background-color: var(--light-color);
+        }
+        
+        .stock-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .stock-popup.active  {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .stock-container {
+            width: 800px;
+            max-width: 90%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        
+        .stock-popup.active  .stock-container {
+            transform: translateY(0);
+        }
+        
+        .stock-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stock-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .stock-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .stock-close:hover {
+            transform: rotate(90deg);
+        }
+        
+        .stock-content {
+            padding: 20px;
+        }
+        
+        .stock-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 15px;
+        }
+        
+        .stock-name {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin: 0;
+        }
+        
+        .stock-code {
+            font-size: 16px;
+            color: #757575;
+            margin: 5px 0 0 0;
+        }
+        
+        .stock-price {
+            text-align: right;
+        }
+        
+        .current-price {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .price-up {
+            color: var(--danger-color);
+        }
+        
+        .price-down {
+            color: var(--success-color);
+        }
+        
+        .price-change {
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        
+        .time-periods {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .period-btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .period-btn:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .period-btn.active  {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .stock-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 10px 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .stock-btn {
+            padding: 8px 16px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .stock-btn.primary  {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .stock-btn.primary:hover  {
+            background-color: #1976d2;
+        }
+        
+        .stock-btn.secondary  {
+            background-color: #e0e0e0;
+            color: var(--dark-color);
+        }
+        
+        .stock-btn.secondary:hover  {
+            background-color: #bdbdbd;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 40px;
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="stock-popup" id="stockPopup">
+        <div class="stock-container">
+            <div class="stock-header">
+                <h2 class="stock-title">Stock K-Line Chart</h2>
+                <button class="stock-close" id="closePopup">&times;</button>
+            </div>
+            <div class="stock-content">
+                <div class="stock-info">
+                    <div>
+                        <h3 class="stock-name" id="stockName">--</h3>
+                        <p class="stock-code" id="stockCode">--</p>
+                    </div>
+                    <div class="stock-price">
+                        <div class="current-price" id="currentPrice">--</div>
+                        <div class="price-change" id="priceChange">--</div>
+                    </div>
+                </div>
+                
+                <div class="time-periods">
+                    <button class="period-btn active" data-period="daily">Daily</button>
+                    <button class="period-btn" data-period="weekly">Weekly</button>
+                    <button class="period-btn" data-period="monthly">Monthly</button>
+                </div>
+                
+                <div class="chart-container" id="chartContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="stock-footer">
+                <button class="stock-btn secondary" id="viewDetails">View Details</button>
+                <button class="stock-btn primary" id="addToWatchlist">Add to Watchlist</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div class="chart-container" id="chartContainer">
+    <img id="dailyChart" src="//image2.sinajs.cn/newchart/daily/n/sz002236.gif" style="width:100%;height:100%;">
+    <img id="weeklyChart" src="//image2.sinajs.cn/newchart/weekly/n/sz002236.gif" style="width:100%;height:100%;display:none;">
+    <img id="monthlyChart" src="//image2.sinajs.cn/newchart/monthly/n/sz002236.gif" style="width:100%;height:100%;display:none;">
+</div>
+
+<script>
+    // 时间周期切换 
+    const periodBtns = document.querySelectorAll('.period-btn'); 
+    periodBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            periodBtns.forEach(b => b.classList.remove('active')); 
+            this.classList.add('active'); 
+            const period = this.dataset.period;
+            
+            // 根据选择的周期显示对应的K线图
+            document.getElementById('dailyChart').style.display = period === 'daily' ? 'block' : 'none';
+            document.getElementById('weeklyChart').style.display = period === 'weekly' ? 'block' : 'none';
+            document.getElementById('monthlyChart').style.display = period === 'monthly' ? 'block' : 'none';
+            
+            // 更新股票代码
+            const stockCode = document.getElementById('stockCode').textContent;
+            if(stockCode !== '--') {
+                document.getElementById('dailyChart').src = `//image2.sinajs.cn/newchart/daily/n/${stockCode}.gif`;
+                document.getElementById('weeklyChart').src = `//image2.sinajs.cn/newchart/weekly/n/${stockCode}.gif`;
+                document.getElementById('monthlyChart').src = `//image2.sinajs.cn/newchart/monthly/n/${stockCode}.gif`;
+            }
+        });
+    });
+</script>
+                                    width: 1,
+                                    type: 'dashed'
+                                }
+                            },
+                            {
+                                name: 'max line on close',
+                                type: 'max',
+                                valueDim: 'close',
+                                lineStyle: {
+                                    color: '#26c6da',
+                                    width: 1,
+                                    type: 'dashed'
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    name: 'MA5',
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: {
+                        width: 1,
+                        color: '#ffa726'
+                    }
+                },
+                {
+                    name: 'MA10',
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: {
+                        width: 1,
+                        color: '#26c6da'
+                    }
+                },
+                {
+                    name: 'MA20',
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: {
+                        width: 1,
+                        color: '#9c27b0'
+                    }
+                },
+                {
+                    name: 'Volume',
+                    type: 'bar',
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: [],
+                    itemStyle: {
+                        color: function(params) {
+                            const data = params.data; 
+                            return data[1] >= data[0] ? '#66bb6a' : '#ef5350';
+                        }
+                    }
+                }
+            ]
+        };
+        
+        myChart.setOption(chartOption); 
+        
+        // 处理窗口大小变化 
+        window.addEventListener('resize',  function() {
+            myChart.resize(); 
+        });
+        
+        // 弹出窗口控制 
+        const stockPopup = document.getElementById('stockPopup'); 
+        const closePopup = document.getElementById('closePopup'); 
+        
+        function showPopup() {
+            stockPopup.classList.add('active'); 
+            document.body.style.overflow  = 'hidden';
+        }
+        
+        function hidePopup() {
+            stockPopup.classList.remove('active'); 
+            document.body.style.overflow  = '';
+        }
+        
+        closePopup.addEventListener('click',  hidePopup);
+        stockPopup.addEventListener('click',  function(e) {
+            if (e.target  === stockPopup) {
+                hidePopup();
+            }
+        });
+        
+        // 时间周期切换 
+        const periodBtns = document.querySelectorAll('.period-btn'); 
+        periodBtns.forEach(btn  => {
+            btn.addEventListener('click',  function() {
+                periodBtns.forEach(b  => b.classList.remove('active')); 
+                this.classList.add('active'); 
+                const period = this.dataset.period; 
+                loadStockData(currentStockCode, period);
+            });
+        });
+        
+        // 替换模拟股票数据函数为实际API调用
+        function loadStockData(stockCode, period = 'daily') {
+            currentStockCode = stockCode;
+            
+            // 显示加载状态
+            document.getElementById('stockName').textContent = '加载中...';
+            document.getElementById('stockCode').textContent = stockCode;
+            document.getElementById('currentPrice').textContent = '--';
+            document.getElementById('priceChange').textContent = '--';
+            
+            // 构建API URL
+            const periodMap = {
+                daily: 'day',
+                weekly: 'week',
+                monthly: 'month'
+            };
+            const apiUrl = `https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=${stockCode}&scale=${periodMap[period]}&datalen=30`;
+            
+            // 调用新浪财经API
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        throw new Error('未获取到数据');
+                    }
+                    
+                    // 处理API返回的数据
+                    const dates = [];
+                    const kData = [];
+                    const volumes = [];
+                    
+                    data.forEach(item => {
+                        dates.push(new Date(item.day).getTime());
+                        kData.push([
+                            parseFloat(item.open),
+                            parseFloat(item.close),
+                            parseFloat(item.low),
+                            parseFloat(item.high)
+                        ]);
+                        volumes.push([item.volume]);
+                    });
+                    
+                    // 计算MA指标
+                    const ma5 = calculateMA(5, kData);
+                    const ma10 = calculateMA(10, kData);
+                    const ma20 = calculateMA(20, kData);
+                    
+                    // 更新图表数据
+                    chartOption.xAxis[0].data = dates;
+                    chartOption.xAxis[1].data = dates;
+                    chartOption.series[0].data = kData;
+                    chartOption.series[1].data = ma5;
+                    chartOption.series[2].data = ma10;
+                    chartOption.series[3].data = ma20;
+                    chartOption.series[4].data = volumes;
+                    
+                    myChart.setOption(chartOption);
+                    
+                    // 更新股票信息
+                    const latest = data[0];
+                    document.getElementById('stockName').textContent = getStockName(stockCode);
+                    document.getElementById('currentPrice').textContent = latest.close;
+                    document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+                    
+                    // 根据涨跌设置颜色
+                    const priceElement = document.getElementById('currentPrice');
+                    const changeElement = document.getElementById('priceChange');
+                    if (latest.close > latest.open) {
+                        priceElement.className = 'current-price price-up';
+                        changeElement.className = 'price-change price-up';
+                    } else {
+                        priceElement.className = 'current-price price-down';
+                        changeElement.className = 'price-change price-down';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取股票数据失败:', error);
+                    document.getElementById('stockName').textContent = '获取数据失败';
+                    document.getElementById('currentPrice').textContent = '--';
+                    document.getElementById('priceChange').textContent = '--';
+                });
+        }
+        
+        // 计算移动平均线
+        function calculateMA(dayCount, kData) {
+            const result = [];
+            for (let i = 0; i < kData.length; i++) {
+                if (i < dayCount - 1) {
+                    result.push('-');
+                    continue;
+                }
+                let sum = 0;
+                for (let j = 0; j < dayCount; j++) {
+                    sum += kData[i - j][1]; // 使用收盘价计算
+                }
+                result.push((sum / dayCount).toFixed(2));
+            }
+            return result;
+        }
+        
+        // 模拟股票名称映射 
+        function getStockName(code) {
+            const stockMap = {
+                '600519': '贵州茅台',
+                '000858': '五粮液',
+                '601318': '中国平安',
+                '600036': '招商银行',
+                '000333': '美的集团',
+                '000651': '格力电器',
+                '601888': '中国中免',
+                '600276': '恒瑞医药',
+                '601398': '工商银行',
+                '601288': '农业银行'
+            };
+            
+            return stockMap[code] || '未知股票';
+        }
+        
+        // 划词功能 (模拟)
+        document.addEventListener('mouseup',  function(e) {
+            const selection = window.getSelection(); 
+            const selectedText = selection.toString().trim(); 
+            
+            if (selectedText.length  > 0) {
+                // 检查是否是股票代码 (6位数字)
+                if (/^\d{6}$/.test(selectedText)) {
+                    loadStockData(selectedText);
+                    return;
+                }
+                
+                // 检查是否是股票名称 (简单匹配)
+                const stockMap = {
+                    '贵州茅台': '600519',
+                    '五粮液': '000858',
+                    '中国平安': '601318',
+                    '招商银行': '600036',
+                    '美的集团': '000333',
+                    '格力电器': '000651',
+                    '中国中免': '601888',
+                    '恒瑞医药': '600276',
+                    '工商银行': '601398',
+                    '农业银行': '601288'
+                };
+                
+                if (stockMap[selectedText]) {
+                    loadStockData(stockMap[selectedText]);
+                }
+            }
+        });
+        
+        // 按钮事件 
+        document.getElementById('viewDetails').addEventListener('click',  function() {
+            alert(`将跳转到新浪财经查看 ${currentStockCode} 的详细数据`);
+        });
+        
+        document.getElementById('addToWatchlist').addEventListener('click',  function() {
+            alert(`已将 ${currentStockCode} 添加到自选股列表`);
+        });
+    </script>
+</body>
+</html>
+<script type="module">
+    import { getStockName, getStockCode } from './stock_data.js';
+    
+    // 替换原来的模拟映射函数
+    function loadStockData(stockCode, period = 'daily') {
+        // 使用新的getStockName函数
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('stockCode').textContent = stockCode;
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+        
+        // 构建API URL
+        const periodMap = {
+            daily: 'day',
+            weekly: 'week',
+            monthly: 'month'
+        };
+        const apiUrl = `https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=${stockCode}&scale=${periodMap[period]}&datalen=30`;
+        
+        // 调用新浪财经API
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.length === 0) {
+                    throw new Error('未获取到数据');
+                }
+                
+                // 处理API返回的数据
+                const dates = [];
+                const kData = [];
+                const volumes = [];
+                
+                data.forEach(item => {
+                    dates.push(new Date(item.day).getTime());
+                    kData.push([
+                        parseFloat(item.open),
+                        parseFloat(item.close),
+                        parseFloat(item.low),
+                        parseFloat(item.high)
+                    ]);
+                    volumes.push([item.volume]);
+                });
+                
+                // 计算MA指标
+                const ma5 = calculateMA(5, kData);
+                const ma10 = calculateMA(10, kData);
+                const ma20 = calculateMA(20, kData);
+                
+                // 更新图表数据
+                chartOption.xAxis[0].data = dates;
+                chartOption.xAxis[1].data = dates;
+                chartOption.series[0].data = kData;
+                chartOption.series[1].data = ma5;
+                chartOption.series[2].data = ma10;
+                chartOption.series[3].data = ma20;
+                chartOption.series[4].data = volumes;
+                
+                myChart.setOption(chartOption);
+                
+                // 更新股票信息
+                const latest = data[0];
+                document.getElementById('stockName').textContent = getStockName(stockCode);
+                document.getElementById('currentPrice').textContent = latest.close;
+                document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+                
+                // 根据涨跌设置颜色
+                const priceElement = document.getElementById('currentPrice');
+                const changeElement = document.getElementById('priceChange');
+                if (latest.close > latest.open) {
+                    priceElement.className = 'current-price price-up';
+                    changeElement.className = 'price-change price-up';
+                } else {
+                    priceElement.className = 'current-price price-down';
+                    changeElement.className = 'price-change price-down';
+                }
+            })
+            .catch(error => {
+                console.error('获取股票数据失败:', error);
+                document.getElementById('stockName').textContent = '获取数据失败';
+                document.getElementById('currentPrice').textContent = '--';
+                document.getElementById('priceChange').textContent = '--';
+            });
+    }
+    
+    // 其他需要用到股票名称/代码转换的地方也做相应修改
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
+    // 如果是从API获取的数据出现乱码
+    fetch(apiUrl, {
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            throw new Error('未获取到数据');
+        }
+        
+        // 处理API返回的数据
+        const dates = [];
+        const kData = [];
+        const volumes = [];
+        
+        data.forEach(item => {
+            dates.push(new Date(item.day).getTime());
+            kData.push([
+                parseFloat(item.open),
+                parseFloat(item.close),
+                parseFloat(item.low),
+                parseFloat(item.high)
+            ]);
+            volumes.push([item.volume]);
+        });
+        
+        // 计算MA指标
+        const ma5 = calculateMA(5, kData);
+        const ma10 = calculateMA(10, kData);
+        const ma20 = calculateMA(20, kData);
+        
+        // 使用ECharts绘制K线图
+        const chart = echarts.init(document.getElementById('chart-container'));
+        chart.setOption({
+            xAxis: { 
+                type: 'category',
+                data: dates,
+                axisLabel: {
+                    formatter: function (value) {
+                        return echarts.format.formatTime('MM-dd', value);
+                    }
+                }
+            },
+            yAxis: { scale: true },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: kData,
+                    itemStyle: {
+                        color: '#ef232a',
+                        color0: '#14b143',
+                        borderColor: '#ef232a',
+                        borderColor0: '#14b143'
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma5,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma10,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                },
+                {
+                    type: 'line',
+                    data: ma20,
+                    smooth: true,
+                    lineStyle: {
+                        opacity: 0.5
+                    }
+                }
+            ]
+        });
+        
+        // 更新股票信息
+        const latest = data[0];
+        document.getElementById('stockName').textContent = getStockName(stockCode);
+        document.getElementById('currentPrice').textContent = latest.close;
+        document.getElementById('priceChange').textContent = `${(latest.close - latest.open).toFixed(2)} (${((latest.close - latest.open)/latest.open*100).toFixed(2)}%)`;
+        
+        // 根据涨跌设置颜色
+        const priceElement = document.getElementById('currentPrice');
+        const changeElement = document.getElementById('priceChange');
+        if (latest.close > latest.open) {
+            priceElement.className = 'current-price price-up';
+            changeElement.className = 'price-change price-up';
+        } else {
+            priceElement.className = 'current-price price-down';
+            changeElement.className = 'price-change price-down';
+        }
+    })
+    .catch(error => {
+        console.error('获取股票数据失败:', error);
+        document.getElementById('stockName').textContent = '获取数据失败';
+        document.getElementById('currentPrice').textContent = '--';
+        document.getElementById('priceChange').textContent = '--';
+    });
+
+</script>
+</body>
+</html>
+<script>
+    // 确保文档使用UTF-8编码
+    document.charset = 'UTF-8';
+    
