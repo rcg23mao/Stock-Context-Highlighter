@@ -1,6 +1,6 @@
 ![image](https://github.com/user-attachments/assets/a23c5838-f03a-456b-81fc-4b7bfad0a002)
 **核心功能概述**
-
+浏览器插件
 # 划词识别与K线弹窗
 
 划词识别：选中页面文字时，自动识别股票代码（如600519）或精确名称（如“贵州茅台”）。
